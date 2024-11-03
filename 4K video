@@ -1,0 +1,92 @@
+import cv2
+import numpy as np
+from skimage.metrics import structural_similarity as ssim
+from skimage.metrics import mean_squared_error
+
+def calculate_metrics(original_video_path, streamed_video_path):
+    # Open the original and streamed video files
+    original_cap = cv2.VideoCapture(original_video_path)
+    streamed_cap = cv2.VideoCapture(streamed_video_path)
+
+    # Verify that both videos opened successfully
+    if not original_cap.isOpened():
+        print(f"Error: Cannot open original video at {original_video_path}")
+        return None, None, None
+
+    if not streamed_cap.isOpened():
+        print(f"Error: Cannot open streamed video at {streamed_video_path}")
+        return None, None, None
+
+    psnr_values = []
+    ssim_values = []
+    mse_values = []
+    frame_index = 0
+
+    # Process frames from both videos
+    while True:
+        ret_original, original_frame = original_cap.read()
+        ret_streamed, streamed_frame = streamed_cap.read()
+
+        # Stop if either video reaches the end
+        if not ret_original or not ret_streamed:
+            break
+
+        # Check for frame size compatibility
+        if original_frame.shape != streamed_frame.shape:
+            print(f"Skipping frame {frame_index} due to size mismatch.")
+            continue
+
+        # Convert frames to grayscale for SSIM and MSE calculations
+        original_gray = cv2.cvtColor(original_frame, cv2.COLOR_BGR2GRAY)
+        streamed_gray = cv2.cvtColor(streamed_frame, cv2.COLOR_BGR2GRAY)
+
+        # Calculate PSNR, ensuring non-infinite values
+        psnr = cv2.PSNR(original_frame, streamed_frame)
+        if np.isfinite(psnr):
+            psnr_values.append(psnr)
+        else:
+            print(f"Non-finite PSNR value at frame {frame_index}")
+
+        # Calculate SSIM
+        ssim_score = ssim(original_gray, streamed_gray)
+        ssim_values.append(ssim_score)
+
+        # Calculate MSE
+        mse = mean_squared_error(original_gray, streamed_gray)
+        mse_values.append(mse)
+
+        frame_index += 1
+
+    # Release video captures
+    original_cap.release()
+    streamed_cap.release()
+
+    # Calculate and return average metrics
+    avg_psnr = np.mean(psnr_values) if psnr_values else float('nan')
+    avg_ssim = np.mean(ssim_values) if ssim_values else float('nan')
+    avg_mse = np.mean(mse_values) if mse_values else float('nan')
+
+    return avg_psnr, avg_ssim, avg_mse
+
+# List of original and streamed video file paths
+video_pairs = [
+    ('RoastDuck.mp4', 'RoastDuck_Tunnel.mp4'),
+  ]
+
+# Open a text file to save the results
+with open('metrics_results.txt', 'w') as file:
+    file.write("Comparison of Original Videos vs. Streamed Videos\n\n")
+
+    for original_video_path, streamed_video_path in video_pairs:
+        avg_psnr, avg_ssim, avg_mse = calculate_metrics(original_video_path, streamed_video_path)
+
+        ifavg_psnr is not None and avg_ssim is not None and avg_mse is not None:
+            file.write(f"Original Video: {original_video_path}\n")
+            file.write(f"Streamed Video: {streamed_video_path}\n")
+            file.write(f"Average PSNR: {avg_psnr:.4f} dB\n")
+            file.write(f"Average SSIM: {avg_ssim:.4f}\n")
+            file.write(f"Average MSE: {avg_mse:.4f}\n\n")
+        else
+            file.write(f"Could not compute metrics for {original_video_path} and {streamed_video_path}\n\n")
+
+print("Metrics saved to 'metrics_results_Tunnel.txt'")
